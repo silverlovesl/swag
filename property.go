@@ -34,10 +34,17 @@ func newProperty(schemeType string, crossPkg string) propertyName {
 	}
 }
 
-func convertFromSpecificToPrimitive(typeName string) (string, error) {
+func convertFromSpecificToPrimitive(expr, typeName string) (string, error) {
 	typeName = strings.ToUpper(typeName)
+
+	if expr == "null" {
+		return fmt.Sprintf("%s.%s", expr, strings.Title(strings.ToLower(typeName))), nil
+	}
+
 	switch typeName {
-	case "TIME", "OBJECTID", "UUID":
+	case "TIME":
+		return "time.Time", nil
+	case "OBJECTID", "UUID":
 		return "string", nil
 	case "DECIMAL":
 		return "number", nil
@@ -46,14 +53,18 @@ func convertFromSpecificToPrimitive(typeName string) (string, error) {
 }
 
 func parseFieldSelectorExpr(astTypeSelectorExpr *ast.SelectorExpr, parser *Parser, propertyNewFunc propertyNewFunc) propertyName {
-	if primitiveType, err := convertFromSpecificToPrimitive(astTypeSelectorExpr.Sel.Name); err == nil {
+
+	X := fmt.Sprintf("%s", astTypeSelectorExpr.X)
+	fmt.Printf("%+v\n", astTypeSelectorExpr)
+
+	if primitiveType, err := convertFromSpecificToPrimitive(X, astTypeSelectorExpr.Sel.Name); err == nil {
 		return propertyNewFunc(primitiveType, "")
 	}
 
 	if pkgName, ok := astTypeSelectorExpr.X.(*ast.Ident); ok {
 		if typeDefinitions, ok := parser.TypeDefinitions[pkgName.Name][astTypeSelectorExpr.Sel.Name]; ok {
 			if expr, ok := typeDefinitions.Type.(*ast.SelectorExpr); ok {
-				if primitiveType, err := convertFromSpecificToPrimitive(expr.Sel.Name); err == nil {
+				if primitiveType, err := convertFromSpecificToPrimitive(X, expr.Sel.Name); err == nil {
 					return propertyNewFunc(primitiveType, "")
 				}
 			}
